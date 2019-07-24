@@ -1,56 +1,51 @@
-const os = require('os')
-const NUM_BROWSERS = parseInt(process.argv[2], 10) || os.cpus().length
-const Browser = require('lib/Browser')
+const os = require('os');
+const NUM_BROWSERS = parseInt(process.argv[2], 10) || os.cpus().length;
+const Browser = require('./lib/Browser');
+const Validate = require('./lib/Validate');
 /*
  * IMPORTANT - each browser is listening to process's "exit" event
  * this line allows more than the default 10 listeners / browsers open at a time
  */
-process.setMaxListeners(NUM_BROWSERS)
+process.setMaxListeners(NUM_BROWSERS);
 
-const browser = new Browser(NUM_BROWSERS);
+const browser = new Browser();
 
 // Require the framework and instantiate it
 const fastify = require('fastify')({
-  logger: true
-})
-
+  logger: {
+    customLevels: {
+      log: 35
+    }
+  }
+});
+/**
+ * @type {Validate}
+ */
+var validator;
 // Declare a route
-fastify.all('*', (req, res) => {
-  if (!req.query.url || !req.query.url.length) {
-    res.status(404)
-      .send('need a valid url')
-    return
+fastify.all('*', async (req, res) => {
+  let request = validator.parse(req, res);
+  if (!request) {
+    return;
   }
-
-  let url
+  let url = request.url;
   try {
-    url = decodeURIComponent(req.query.url);
-  } catch (e) {
-    res.status(404)
-      .send('need a valid url')
-    return
-  }
-
-  const headers = transformHeaders(req.rawHeaders)
-
-  try {
-    const picture = await browser.screenshot(headers, url, options, viewport, waitUntil)
+    const picture = await browser.screenshot(url, request);
     res.status(200)
-      .set('Content-type', 'image/jpeg')
+      .type(request.contentType)
       .send(picture)
   } catch (e) {
     res.status(500)
       .send(`Puppeteer Failed 
       - url: ${url} 
-      - screenshot options: ${JSON.stringify(options)} 
-      - viewport: ${JSON.stringify(viewport)} 
-      - waitUntil: ${waitUntil}
+      - screenshot request: ${JSON.stringify(request)} 
       - stacktrace: \n\n${e.stack}`)
   }
-})
+});
 
 // Run the server!
 fastify.listen(3000, (err, address) => {
-  if (err) throw err
-  fastify.log.info(`server listening on ${address}`)
-})
+  if (err) throw err;
+  validator = new Validate({logger: fastify.log});
+  return browser.init(NUM_BROWSERS);
+});
