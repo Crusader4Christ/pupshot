@@ -1,5 +1,6 @@
 const os = require('os');
 const NUM_BROWSERS = parseInt(process.argv[2], 10) || os.cpus().length;
+const PORT = process.env.PORT || 3003
 const Browser = require('./lib/Browser');
 const Validate = require('./lib/Validate');
 /*
@@ -44,7 +45,7 @@ fastify.all('*', async (req, res) => {
 });
 
 // Run the server!
-fastify.listen(3000, (err, address) => {
+fastify.listen(PORT, (err, address) => {
   if (err) throw err;
   validator = new Validate({logger: fastify.log});
   return browser.init(NUM_BROWSERS);
