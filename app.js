@@ -29,7 +29,7 @@ fastify.all('*', async (req, res) => {
   if (!request) {
     return;
   }
-  let url = request.url;
+  let url = req.query.url;
   try {
     const picture = await browser.screenshot(url, request);
     res.status(200)
@@ -37,15 +37,15 @@ fastify.all('*', async (req, res) => {
       .send(picture)
   } catch (e) {
     res.status(500)
-      .send(`Puppeteer Failed 
-      - url: ${url} 
-      - screenshot request: ${JSON.stringify(request)} 
+      .send(`Puppeteer Failed
+      - url: ${url}
+      - screenshot request: ${JSON.stringify(request)}
       - stacktrace: \n\n${e.stack}`)
   }
 });
 
 // Run the server!
-fastify.listen(PORT, (err, address) => {
+fastify.listen(PORT, '0.0.0.0', (err, address) => {
   if (err) throw err;
   validator = new Validate({logger: fastify.log});
   return browser.init(NUM_BROWSERS);

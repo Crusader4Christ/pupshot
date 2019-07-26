@@ -6,7 +6,7 @@ ENV APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
     && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
     && apt-get update \
-    && apt-get install -y libgconf-2-4 google-chrome-unstable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst ttf-freefont \
+    && apt-get install -y libgconf-2-4 libfontconfig1 google-chrome-unstable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst ttf-freefont \
       --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
@@ -19,16 +19,20 @@ ENTRYPOINT ["dumb-init", "--"]
 # Uncomment to skip the chromium download when installing puppeteer. If you do,
 # you'll need to launch puppeteer with:
 #     browser.launch({executablePath: 'google-chrome-unstable'})
-# ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
+#ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
+
+WORKDIR /home/pptruser/app
+COPY package.json package-lock.json ./
+
 
 # Install puppeteer so it's available in the container.
-RUN \
+RUN npm install \
     # Add user so we don't need --no-sandbox.
     # same layer as npm install to keep re-chowned files from using up several hundred MBs more space
-    groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
+    && groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
     && mkdir -p /home/pptruser/Downloads \
-    && chown -R pptruser:pptruser /home/pptruser
-    #&& chown -R pptruser:pptruser /node_modules
+    && chown -R pptruser:pptruser /home/pptruser \
+    && chown -R pptruser:pptruser /home/pptruser/app/node_modules
 
 # Run everything after as non-privileged user.
 USER pptruser
@@ -36,11 +40,6 @@ USER pptruser
 EXPOSE 3003
 EXPOSE 9229
 
-WORKDIR /home/pptruser
-
-COPY package-lock.json package.json ./
-RUN npm install
-
-COPY . .
+COPY --chown=pptruser . ./
 
 CMD ["node", "app.js"]
